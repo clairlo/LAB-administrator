@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>實驗排程總覽</title>
+<style>
+  :root {
+    --ntuh-green: #006341;
+    --ntuh-green-dark: #00432c;
+    --ntuh-green-tint: #e6f0ec;
+    --ntuh-gold: #c8973a;
+    --ntuh-gold-tint: #f8ecd6;
+    --banner-blue: #14395c;
+    --banner-blue-dark: #0d2740;
+    --ink: #1c2420;
+    --ink-soft: #5a6a62;
+    --paper: #f7f8f6;
+    --card: #ffffff;
+    --line: #e1e6e2;
+    --free: #dcefe4;
+    --busy-one: #ffffff;
+    --conflict: #f6dfc9;
+    --conflict-strong: #e8b573;
+    --radius: 10px;
+    font-family: "Noto Sans TC", "PingFang TC", "Segoe UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: inherit;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    background: var(--banner-blue);
+    color: #fff;
+    padding: 22px 28px 18px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    border-bottom: 4px solid var(--ntuh-gold);
+  }
+
+  header .title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 1.35rem;
+    letter-spacing: 0.02em;
+    font-weight: 700;
+  }
+
+  header .eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.75;
+  }
+
+  header .meta {
+    font-size: 0.78rem;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #refreshBtn {
+    background: var(--ntuh-gold);
+    color: #3a2a05;
+    border: none;
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  #refreshBtn:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.18); }
+  #refreshBtn:disabled { opacity: 0.6; cursor: progress; }
+
+  nav.tabs {
+    display: flex;
+    gap: 4px;
+    padding: 14px 28px 0;
+    background: var(--paper);
+    border-bottom: 1px solid var(--line);
+  }
+
+  nav.tabs button {
+    background: transparent;
+    border: none;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  nav.tabs button.active {
+    color: var(--ntuh-green-dark);
+    border-bottom-color: var(--ntuh-green);
+  }
+
+  main {
+    padding: 22px 28px 60px;
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .toolbar {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .toolbar label {
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  select {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink);
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.85rem;
+  }
+
+  thead th {
+    background: var(--ntuh-green-tint);
+    color: var(--ntuh-green-dark);
+    text-align: left;
+    padding: 10px 12px;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+
+  tbody td {
+    padding: 8px 12px;
+    border-top: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  tbody tr:hover { background: #fbfbf9; }
+
+  tr.conflict-row td { background: var(--conflict); }
+  tr.conflict-row:hover td { background: var(--conflict-strong); }
+
+  .badge {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+  }
+  .badge.ok { background: var(--free); color: var(--ntuh-green-dark); }
+  .badge.conflict { background: var(--conflict-strong); color: #5a3200; }
+
+  .scroll-x { overflow-x: auto; }
+
+  table.matrix { min-width: 720px; }
+  table.matrix th, table.matrix td {
+    text-align: center;
+    font-size: 0.78rem;
+    padding: 8px 6px;
+    white-space: nowrap;
+  }
+  table.matrix thead th:first-child,
+  table.matrix tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--ntuh-green-tint);
+    color: var(--ntuh-green-dark);
+    font-weight: 700;
+    text-align: left;
+    padding-left: 12px;
+  }
+  table.matrix td.free { background: var(--free); }
+  table.matrix td.busy { background: var(--busy-one); }
+  table.matrix td.multi { background: var(--conflict-strong); font-weight: 700; color: #5a3200; }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin: 14px 2px 0;
+  }
+  .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  .empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--ink-soft);
+  }
+
+  .empty-state h2 { color: var(--ink); font-size: 1.05rem; margin-bottom: 6px; }
+
+  footer {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    padding: 20px;
+  }
+
+  code {
+    background: #eef1ee;
+    padding: 1px 6px;
+    border-radius: 5px;
+    font-size: 0.82em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <span class="eyebrow">Microbiome Core · NTUH</span>
+    <h1>實驗排程總覽</h1>
+  </div>
+  <div class="meta">
+    <span id="updatedAt">尚未載入</span>
+    <button id="refreshBtn">重新整理</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-panel="panel-schedule">彙總資料</button>
+  <button class="tab-btn" data-panel="panel-task">人員任務總表</button>
+  <button class="tab-btn" data-panel="panel-free">空檔總覽</button>
+</nav>
+
+<main>
+
+  <section id="panel-schedule" class="panel active">
+    <div class="toolbar">
+      <label>人員
+        <select id="scheduleFilterPerson"><option value="">全部</option></select>
+      </label>
+      <label>
+        <input type="checkbox" id="scheduleOnlyConflict" />
+        只顯示撞時間
+      </label>
+    </div>
+    <div class="card scroll-x">
+      <table id="scheduleTable">
+        <thead>
+          <tr>
+            <th>人員</th><th>日期</th><th>時間</th><th>Task</th><th>儲存格內容</th><th>撞時間</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-task" class="panel">
+    <div class="toolbar">
+      <label>人員
+        <select id="taskFilterPerson"><option value="">全部</option></select>
+      </label>
+    </div>
+    <div class="card scroll-x">
+      <table id="taskTable">
+        <thead>
+          <tr><th>人員</th><th>Task</th><th>項目筆數</th><th>最近日期</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="panel-free" class="panel">
+    <div class="card scroll-x">
+      <table class="matrix" id="freeTable">
+        <thead><tr></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--free)"></span>空檔</span>
+      <span><span class="swatch" style="background:var(--busy-one)"></span>1 人在忙</span>
+      <span><span class="swatch" style="background:var(--conflict-strong)"></span>2 人以上撞時間</span>
+    </div>
+  </section>
+
+</main>
+
+<footer>資料來源：Google Sheets（透過 Apps Script 網頁應用程式 API 讀取）</footer>
+
+<script>
+  // ====== 設定：把部署好的 Apps Script 網頁應用程式網址貼在這裡 ======
+  // 部署方式：Apps Script 編輯器右上角「部署」→「新增部署作業」→「網頁應用程式」
+  // 部署後會拿到一個 .../exec 結尾的網址，整段貼到下面雙引號中間。
+  const API_URL = "貼上妳的 Apps Script 網頁應用程式網址（.../exec）";
+
+  let state = { schedule: [], taskOverview: [], freeSlot: { dates: [], slots: [], grid: [] } };
+
+  const els = {
+    updatedAt: document.getElementById('updatedAt'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    scheduleBody: document.querySelector('#scheduleTable tbody'),
+    scheduleFilterPerson: document.getElementById('scheduleFilterPerson'),
+    scheduleOnlyConflict: document.getElementById('scheduleOnlyConflict'),
+    taskBody: document.querySelector('#taskTable tbody'),
+    taskFilterPerson: document.getElementById('taskFilterPerson'),
+    freeThead: document.querySelector('#freeTable thead tr'),
+    freeBody: document.querySelector('#freeTable tbody'),
+  };
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.panel).classList.add('active');
+    });
+  });
+
+  async function loadData(refresh) {
+    if (!API_URL || API_URL.indexOf('http') !== 0) {
+      showConfigNotice();
+      return;
+    }
+    els.refreshBtn.disabled = true;
+    els.refreshBtn.textContent = refresh ? '更新中…（掃描所有人檔案，請稍候）' : '載入中…';
+    try {
+      const url = API_URL + (refresh ? '?action=refresh' : '');
+      const res = await fetch(url);
+      const data = await res.json();
+      state = data;
+      render();
+    } catch (err) {
+      els.updatedAt.textContent = '載入失敗，請確認 API 網址與部署權限';
+      console.error(err);
+    } finally {
+      els.refreshBtn.disabled = false;
+      els.refreshBtn.textContent = '重新整理';
+    }
+  }
+
+  function showConfigNotice() {
+    document.querySelector('main').innerHTML =
+      '<div class="empty-state"><h2>尚未設定 API 網址</h2>' +
+      '<p>請把 Apps Script 網頁應用程式部署後拿到的網址，貼到 index.html 最下方的 <code>API_URL</code> 常數裡。</p></div>';
+  }
+
+  function fillPersonOptions(select, people) {
+    const current = select.value;
+    select.innerHTML = '<option value="">全部</option>' +
+      people.map(p => `<option value="${p}">${p}</option>`).join('');
+    if (people.includes(current)) select.value = current;
+  }
+
+  function render() {
+    els.updatedAt.textContent = state.updatedAt
+      ? '最後更新：' + new Date(state.updatedAt).toLocaleString('zh-TW')
+      : '';
+
+    const people = Array.from(new Set(state.schedule.map(r => r['人員']))).sort();
+    fillPersonOptions(els.scheduleFilterPerson, people);
+    fillPersonOptions(els.taskFilterPerson, people);
+
+    renderSchedule();
+    renderTask();
+    renderFree();
+  }
+
+  function renderSchedule() {
+    const person = els.scheduleFilterPerson.value;
+    const onlyConflict = els.scheduleOnlyConflict.checked;
+    const rows = state.schedule.filter(r =>
+      (!person || r['人員'] === person) &&
+      (!onlyConflict || r['是否撞時間'] === true || r['是否撞時間'] === 'TRUE')
+    );
+
+    els.scheduleBody.innerHTML = rows.map(r => {
+      const conflict = r['是否撞時間'] === true || r['是否撞時間'] === 'TRUE';
+      return `<tr class="${conflict ? 'conflict-row' : ''}">
+        <td>${escapeHtml(r['人員'])}</td>
+        <td>${escapeHtml(r['日期'])}</td>
+        <td>${escapeHtml(r['時間'])}</td>
+        <td>${escapeHtml(r['Task'])}</td>
+        <td>${escapeHtml(r['儲存格內容'])}</td>
+        <td>${conflict ? '<span class="badge conflict">撞時間</span>' : '<span class="badge ok">正常</span>'}</td>
+      </tr>`;
+    }).join('') || emptyRow(6);
+  }
+
+  function renderTask() {
+    const person = els.taskFilterPerson.value;
+    const rows = state.taskOverview.filter(r => !person || r['人員'] === person);
+    els.taskBody.innerHTML = rows.map(r => `<tr>
+        <td>${escapeHtml(r['人員'])}</td>
+        <td>${escapeHtml(r['Task'])}</td>
+        <td>${escapeHtml(r['項目筆數'])}</td>
+        <td>${escapeHtml(r['最近日期'])}</td>
+      </tr>`).join('') || emptyRow(4);
+  }
+
+  function renderFree() {
+    const { dates, slots, grid } = state.freeSlot;
+    els.freeThead.innerHTML = '<th>時段＼日期</th>' + dates.map(d => `<th>${escapeHtml(d)}</th>`).join('');
+    els.freeBody.innerHTML = slots.map((slot, i) => {
+      const cells = (grid[i] || []).map(v => {
+        const names = (v || '').toString();
+        let cls = 'free';
+        if (names) cls = names.indexOf('、') > -1 ? 'multi' : 'busy';
+        return `<td class="${cls}">${escapeHtml(names)}</td>`;
+      }).join('');
+      return `<tr><td>${escapeHtml(slot)}</td>${cells}</tr>`;
+    }).join('') || '';
+  }
+
+  function emptyRow(cols) {
+    return `<tr><td colspan="${cols}" style="text-align:center;color:var(--ink-soft);padding:30px;">目前沒有符合的資料</td></tr>`;
+  }
+
+  function escapeHtml(v) {
+    if (v === null || v === undefined) return '';
+    return String(v)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  els.refreshBtn.addEventListener('click', () => loadData(true));
+  els.scheduleFilterPerson.addEventListener('change', renderSchedule);
+  els.scheduleOnlyConflict.addEventListener('change', renderSchedule);
+  els.taskFilterPerson.addEventListener('change', renderTask);
+
+  loadData(false);
+</script>
+
+</body>
+</html>
